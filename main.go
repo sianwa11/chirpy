@@ -1,31 +1,60 @@
 package main
 
 import (
+	"database/sql"
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"sync/atomic"
+
+	"github.com/joho/godotenv"
+	_ "github.com/lib/pq"
+	"github.com/sianwa11/chirpy/internal/database"
 )
+
 
 type apiConfig struct {
 	fileserverHits atomic.Int32
+	db *database.Queries
+	platform string
 }
 
 
 func main() {
+	godotenv.Load()
+
+	dbUrl := os.Getenv("DB_URL")
+	platform := os.Getenv("PLATFORM")
+
+	db, err := sql.Open("postgres", dbUrl)
+	if err != nil {
+		log.Fatal("failed to open DB: %w", err)
+	}
+
+	dbQueries := database.New(db)
+
 	const rootPath = "."
 	const port = "8080"
 
 	mux := http.NewServeMux()
-	apiCfg := apiConfig{
+	apiCfg := &apiConfig{
 		fileserverHits: atomic.Int32{},
+		db: dbQueries,
+		platform: platform,
 	}
 
 	fsHandler := apiCfg.middlewareMetricsInc(http.StripPrefix("/app",http.FileServer(http.Dir(rootPath))))
 	mux.Handle("/app/", fsHandler)
+
 	mux.HandleFunc("GET /api/healthz", handlerReadiness)
-	mux.HandleFunc("GET /api/metrics", apiCfg.handlerMetrics)
-	mux.HandleFunc("POST /api/reset", apiCfg.handlerReset)
+	// mux.HandleFunc("POST /api/validate_chirp", handlerChirpsValidate)
+	mux.HandleFunc("POST /api/users", apiCfg.handlerCreateUser)
+	mux.HandleFunc("POST /api/chirps", apiCfg.middlewareValidateChirp(apiCfg.handleCreateChirp))
+
+	mux.HandleFunc("GET /admin/metrics", apiCfg.handlerMetrics)
+	mux.HandleFunc("POST /admin/reset", apiCfg.handlerReset)
+
 
 	server := &http.Server{
 		Addr:   ":" + port,
@@ -38,11 +67,17 @@ func main() {
 
 
 func (cfg *apiConfig) handlerMetrics(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
-	s := fmt.Sprintf("Hits: %d", cfg.fileserverHits.Load())
+	s := fmt.Sprintf(`<html>
+  <body>
+	<h1>Welcome, Chirpy Admin</h1>
+	<p>Chirpy has been visited %d times!</p>
+  </body>
+</html>`, cfg.fileserverHits.Load())
 	w.Write([]byte(s))
 }
+
 
 func (cfg *apiConfig) middlewareMetricsInc(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
