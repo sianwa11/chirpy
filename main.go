@@ -7,7 +7,9 @@ import (
 	"net/http"
 	"os"
 	"sync/atomic"
+	"time"
 
+	"github.com/google/uuid"
 	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
 	"github.com/sianwa11/chirpy/internal/database"
@@ -19,6 +21,15 @@ type apiConfig struct {
 	db *database.Queries
 	platform string
 }
+
+	type Chirp struct {
+		ID        uuid.UUID `json:"id"`
+		CreatedAt time.Time `json:"created_at"`
+		UpdatedAt time.Time `json:"updated_at"`
+		Body      string `json:"body"`
+		UserId    uuid.UUID `json:"user_id"`
+	}
+
 
 
 func main() {
@@ -50,7 +61,10 @@ func main() {
 	mux.HandleFunc("GET /api/healthz", handlerReadiness)
 	// mux.HandleFunc("POST /api/validate_chirp", handlerChirpsValidate)
 	mux.HandleFunc("POST /api/users", apiCfg.handlerCreateUser)
+	mux.HandleFunc("POST /api/login", apiCfg.handleLoginUser)
 	mux.HandleFunc("POST /api/chirps", apiCfg.middlewareValidateChirp(apiCfg.handleCreateChirp))
+	mux.HandleFunc("GET /api/chirps", apiCfg.handleGetChirps)
+	mux.HandleFunc("GET /api/chirps/{chirpID}", apiCfg.handleGetChirp)
 
 	mux.HandleFunc("GET /admin/metrics", apiCfg.handlerMetrics)
 	mux.HandleFunc("POST /admin/reset", apiCfg.handlerReset)
