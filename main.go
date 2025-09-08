@@ -18,17 +18,28 @@ import (
 
 type apiConfig struct {
 	fileserverHits atomic.Int32
-	db *database.Queries
-	platform string
+	db             *database.Queries
+	platform       string
+	jwtSecret      string
 }
 
-	type Chirp struct {
-		ID        uuid.UUID `json:"id"`
-		CreatedAt time.Time `json:"created_at"`
-		UpdatedAt time.Time `json:"updated_at"`
-		Body      string `json:"body"`
-		UserId    uuid.UUID `json:"user_id"`
-	}
+type Chirp struct {
+	ID        uuid.UUID `json:"id"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+	Body      string `json:"body"`
+	UserId    uuid.UUID `json:"user_id"`
+}
+
+type User struct {
+	ID           uuid.UUID `json:"id"`
+	CreatedAt    time.Time `json:"created_at"`
+	UpdatedAt    time.Time `json:"updated_at"`
+	Email        string    `json:"email"`
+	Token        string    `json:"token"`
+	RefreshToken string    `json:"refresh_token"`
+}
+
 
 
 
@@ -37,6 +48,7 @@ func main() {
 
 	dbUrl := os.Getenv("DB_URL")
 	platform := os.Getenv("PLATFORM")
+	jwtSecret := os.Getenv("SECRET")
 
 	db, err := sql.Open("postgres", dbUrl)
 	if err != nil {
@@ -53,6 +65,7 @@ func main() {
 		fileserverHits: atomic.Int32{},
 		db: dbQueries,
 		platform: platform,
+		jwtSecret: jwtSecret,
 	}
 
 	fsHandler := apiCfg.middlewareMetricsInc(http.StripPrefix("/app",http.FileServer(http.Dir(rootPath))))
@@ -61,8 +74,16 @@ func main() {
 	mux.HandleFunc("GET /api/healthz", handlerReadiness)
 	// mux.HandleFunc("POST /api/validate_chirp", handlerChirpsValidate)
 	mux.HandleFunc("POST /api/users", apiCfg.handlerCreateUser)
+	mux.HandleFunc("PUT /api/users", apiCfg.handleUpdateUser)
+	mux.HandleFunc("DELETE /api/chirps/{chirpID}", apiCfg.handleDeleteChirp)
+
 	mux.HandleFunc("POST /api/login", apiCfg.handleLoginUser)
-	mux.HandleFunc("POST /api/chirps", apiCfg.middlewareValidateChirp(apiCfg.handleCreateChirp))
+	mux.HandleFunc("POST /api/refresh", apiCfg.handleRefreshToken)
+	mux.HandleFunc("POST /api/revoke", apiCfg.handleRevokeToken)
+
+	mux.HandleFunc("POST /api/chirps", 
+	apiCfg.middlewareMustBeLoggedIn(apiCfg.middlewareValidateChirp(apiCfg.handleCreateChirp)))
+
 	mux.HandleFunc("GET /api/chirps", apiCfg.handleGetChirps)
 	mux.HandleFunc("GET /api/chirps/{chirpID}", apiCfg.handleGetChirp)
 

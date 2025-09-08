@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"net/http"
 )
 
@@ -13,7 +12,7 @@ func (cfg *apiConfig) handlerReset(w http.ResponseWriter, r *http.Request) {
 	}
 
 	cfg.fileserverHits.Store(0)
-	err := cfg.db.DeleteAllUsers(context.Background())
+	err := cfg.db.DeleteAllUsers(r.Context())
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Write([]byte("Failed to reset the database: " + err.Error()))

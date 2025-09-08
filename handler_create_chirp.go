@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"encoding/json"
 	"net/http"
 
@@ -12,10 +11,14 @@ import (
 func (cfg *apiConfig) handleCreateChirp(w http.ResponseWriter, r *http.Request) {
 	type parameters struct {
 		Body   string    `json:"body"`
-		UserId uuid.UUID `json:"user_id"`
+		// UserId uuid.UUID `json:"user_id"`
 	}
 
-	
+	userID, ok := r.Context().Value("user_id").(uuid.UUID)
+	if !ok {
+		respondWithError(w, http.StatusInternalServerError,"failed to get user ID from context", nil)
+		return
+	}
 
 
 	params := parameters{}
@@ -25,7 +28,7 @@ func (cfg *apiConfig) handleCreateChirp(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	chirpBody, err := cfg.db.CreateChirp(context.Background(), database.CreateChirpParams{UserID: params.UserId, Body: params.Body})
+	chirpBody, err := cfg.db.CreateChirp(r.Context(), database.CreateChirpParams{UserID: userID, Body: params.Body})
 	if err != nil {
 		respondWithError(w, 404, "failed to create chirp", err)
 	}

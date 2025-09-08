@@ -1,14 +1,13 @@
 package main
 
 import (
-	"context"
 	"net/http"
 
 	"github.com/google/uuid"
 )
 
 func (cfg *apiConfig) handleGetChirps(w http.ResponseWriter, r *http.Request) {
-	chirpsArr, err := cfg.db.GetAllChirps(context.Background())
+	chirpsArr, err := cfg.db.GetAllChirps(r.Context())
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "failed to fetch chirps", err)
 		return
@@ -37,7 +36,7 @@ func (cfg *apiConfig) handleGetChirp(w http.ResponseWriter, r *http.Request) {
 	}
 	
 	
-	chirpDB, err := cfg.db.GetChirp(context.Background(), chirpID)
+	chirpDB, err := cfg.db.GetChirp(r.Context(), chirpID)
 	if err != nil {
 		respondWithError(w, http.StatusNotFound, "failed to get chirp", err)
 		return
