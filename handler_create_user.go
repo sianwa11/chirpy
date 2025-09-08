@@ -53,6 +53,7 @@ func (cfg *apiConfig) handlerCreateUser(w http.ResponseWriter, r *http.Request) 
 		CreatedAt: usr.CreatedAt,
 		UpdatedAt: usr.UpdatedAt,
 		Email: usr.Email,
+		IsChirpyRed: usr.IsChirpyRed.Bool,
 	})
 }
 
@@ -113,6 +114,7 @@ func (cfg *apiConfig) handleLoginUser(w http.ResponseWriter, r *http.Request) {
 		CreatedAt: usr.CreatedAt,
 		UpdatedAt: usr.UpdatedAt,
 		Email: usr.Email,
+		IsChirpyRed: usr.IsChirpyRed.Bool,
 		Token: jwt,
 		RefreshToken: refreshTknDB.Token,
 	})

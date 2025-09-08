@@ -21,6 +21,7 @@ type apiConfig struct {
 	db             *database.Queries
 	platform       string
 	jwtSecret      string
+	polkaKey       string
 }
 
 type Chirp struct {
@@ -36,6 +37,7 @@ type User struct {
 	CreatedAt    time.Time `json:"created_at"`
 	UpdatedAt    time.Time `json:"updated_at"`
 	Email        string    `json:"email"`
+	IsChirpyRed  bool      `json:"is_chirpy_red"`
 	Token        string    `json:"token"`
 	RefreshToken string    `json:"refresh_token"`
 }
@@ -49,6 +51,7 @@ func main() {
 	dbUrl := os.Getenv("DB_URL")
 	platform := os.Getenv("PLATFORM")
 	jwtSecret := os.Getenv("SECRET")
+	polkaKey := os.Getenv("POLKA_KEY")
 
 	db, err := sql.Open("postgres", dbUrl)
 	if err != nil {
@@ -66,6 +69,7 @@ func main() {
 		db: dbQueries,
 		platform: platform,
 		jwtSecret: jwtSecret,
+		polkaKey: polkaKey,
 	}
 
 	fsHandler := apiCfg.middlewareMetricsInc(http.StripPrefix("/app",http.FileServer(http.Dir(rootPath))))
@@ -76,6 +80,8 @@ func main() {
 	mux.HandleFunc("POST /api/users", apiCfg.handlerCreateUser)
 	mux.HandleFunc("PUT /api/users", apiCfg.handleUpdateUser)
 	mux.HandleFunc("DELETE /api/chirps/{chirpID}", apiCfg.handleDeleteChirp)
+
+	mux.HandleFunc("POST /api/polka/webhooks", apiCfg.handleUpgradeUser)
 
 	mux.HandleFunc("POST /api/login", apiCfg.handleLoginUser)
 	mux.HandleFunc("POST /api/refresh", apiCfg.handleRefreshToken)
